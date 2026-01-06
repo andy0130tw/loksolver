@@ -1,0 +1,14 @@
+{
+  "type": "module",
+  "scripts": {
+    "start": "vite-node src/index.ts",
+    "tsc": "tsc"
+  },
+  "dependencies": {
+    "vite-node": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.3",
+    "typescript": "^5.9.3"
+  }
+}

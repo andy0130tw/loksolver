@@ -1,11 +1,5 @@
 import { newArray } from './utils.js'
 
-enum GridNodeState {
-  Active,
-  Walked,
-  BlackenOut,
-}
-
 export class GridNode {
   readonly id: string
   left!:  GridNode | RowHead
@@ -13,7 +7,7 @@ export class GridNode {
   up!:    GridNode | ColHead
   down!:  GridNode | ColHead
 
-  state: GridNodeState = 0
+  removed = false
   written: string | null = null
 
   constructor(
@@ -21,6 +15,12 @@ export class GridNode {
     readonly y: number,
     readonly char: string) {
     this.id = String.fromCharCode(65 + y) + String(x + 1)
+  }
+
+  getWritten() {
+    if (this.char === '_')
+      return this.written ?? '_'
+    return this.char
   }
 }
 
@@ -79,9 +79,12 @@ export class Grid {
   ncol: number
   rowPtrs: RowHead[]
   colPtrs: ColHead[]
+
   nodeList: GridNode[]
+  byChar: Map<string, GridNode[]> = new Map
 
   activeCnt: number = -1
+  #removed: GridNode[] = []
 
   constructor(readonly grid: (GridNode | null)[][]) {
     this.nrow = grid.length
@@ -107,6 +110,13 @@ export class Grid {
         colsPrev[j].down = cur
         cur.up = colsPrev[j]
         colsPrev[j] = cur
+
+        const cc = cur.getWritten()
+        if (!this.byChar.has(cc)) {
+          this.byChar.set(cc, [cur])
+        } else {
+          this.byChar.get(cc)!.push(cur)
+        }
       }
     }
     this.activeCnt = this.nodeList.length
@@ -131,11 +141,12 @@ export class Grid {
   }
 
   print() {
-    console.log('   ' + newArray(this.ncol, i => ' ' + String.fromCharCode(65 + i)).join(''))
+    console.log('  ' + newArray(this.ncol, i => ' ' + String.fromCharCode(65 + i)).join(''))
     for (let i = 0; i < this.nrow; i++) {
       let str = `${String(i+1).padStart(2)} `
       for (let j = 0; j < this.ncol; j++) {
-        str += this.grid[i][j]?.char.padStart(2) ?? '  '
+        str += this.grid[i][j]?.char ?? ' '
+        str += this.grid[i][j]?.removed ? '#' : ' '
       }
       console.log(str)
     }
@@ -143,5 +154,57 @@ export class Grid {
     // for (let i = 0; i < this.nodeList.length; i++) {
     //   console.log(`node ${i}`, this.nodeList[i])
     // }
+  }
+
+  removeNode(node: GridNode) {
+    // dangerous!
+    const {x, y} = node
+    if (this.grid[x]?.[y] !== node) {
+      throw new Error('illegal node')
+    }
+    return this.removeByPos(node.x, node.y)
+  }
+
+  removeByPos(x: number, y: number) {
+    const node = this.grid[x]?.[y]
+    if (!node) {
+      throw new Error('node not found')
+    }
+
+    if (node.removed) {
+      throw new Error('node has been removed')
+    }
+
+    node.removed = true
+    this.activeCnt--
+
+    node.left.right = node.right
+    node.right.left = node.left
+    node.up.down = node.down
+    node.down.up = node.up
+
+    this.#removed.push(node)
+  }
+
+  backtrack(count: number = 1) {
+    if (count > this.nodeList.length - this.activeCnt) throw new Error('illegal count')
+    for (let i = 0; i < count; i++) {
+      this.#backtrackOne()
+    }
+  }
+
+  #backtrackOne() {
+    const node = this.#removed.pop()
+    if (!node) {
+      throw new Error('backtrack stack underflow')
+    }
+
+    node.removed = false
+    this.activeCnt++
+
+    node.left.right = node
+    node.right.left = node
+    node.up.down = node
+    node.down.up = node
   }
 }

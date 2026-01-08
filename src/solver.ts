@@ -36,27 +36,43 @@ function getNext(node: GridNode, dir: Direction) {
   }
 }
 
+const moreDirsFromX = {
+  [Direction.Right]: [Direction.Up,   Direction.Down ],
+  [Direction.Down]:  [Direction.Left, Direction.Right ],
+  [Direction.Left]:  [Direction.Up,   Direction.Down ],
+  [Direction.Up]:    [Direction.Left, Direction.Right ],
+}
+
 function findPossibleMoves(grid: Grid) {
-  const possibleMoves: { spell: ValidSpell, trail: GridNode[] }[] = []
+  const possibleMoves: { spell: ValidSpell, trail: GridNode[], cellsToBlackOut: GridNode[] }[] = []
 
   const walked: GridNode[] = []
   function walkRec(node: GridNode, dir: Direction, spell: string) {
     if (validSpells.includes(spell)) {
+      const trail = walked.slice().concat([node])
       possibleMoves.push({
         spell: spell as ValidSpell,
-        trail: walked.slice().concat([node]),
+        trail,
+        cellsToBlackOut: trail.filter(x => x.getWritten() !== 'X'),
       })
       return
     }
     if (!validSpellPrefixes.includes(spell)) return
+    if (walked.length > 50) return
+
     const nxt = getNext(node, dir)
 
     if ('_isHead' in nxt) return
 
     walked.push(node)
-    // TODO: consider "X"
-    const nextDir = dir
-    walkRec(nxt, nextDir, spell + nxt.getWritten())
+    const nextChar = nxt.getWritten()
+    const newSpell = spell + (nextChar === 'X' ? '' : nextChar)
+    walkRec(nxt, dir, newSpell)
+    if (nxt.getWritten() === 'X') {
+      for (const nextDir of moreDirsFromX[dir]) {
+        walkRec(nxt, nextDir, newSpell)
+      }
+    }
     walked.pop()
   }
 
@@ -78,7 +94,7 @@ function findPossibleMoves(grid: Grid) {
 
 type SolutionStep =
   | { spell: 'LOK',  trail: GridNode[], drop: string }
-  | { spell: 'TLAK', trail: GridNode[], drop: string }
+  | { spell: 'TLAK', trail: GridNode[], drops: [string, string] }
   | { spell: 'TA',   trail: GridNode[], dropLetter: string }
   // | { spell: 'BE',   trail: GridNode[], space: string, write: string }
   // | { spell: 'LOLO', trail: GridNode[], dropIndex: number }
@@ -88,6 +104,7 @@ function trailToString(trail: GridNode[]) {
 }
 
 export function solve(grid: Grid) {
+  let nExploredState = 0
   const solutions: SolutionStep[][] = []
 
   const movedSteps: SolutionStep[] = []
@@ -103,13 +120,16 @@ export function solve(grid: Grid) {
       return
     }
 
+    nExploredState++
+
     const possibleMoves = findPossibleMoves(grid)
     // console.log('moved', movedSteps)
     // console.log('active count', grid.activeCnt)
-    // console.log('possible moves', possibleMoves.map(({trail, ...rest}) => ({trail: trailToString(trail).join(' -> '), ...rest})))
+    // console.log('possible moves', possibleMoves.map(
+    //   ({trail, cellsToBlackOut, ...rest}) => ({trail: trailToString(trail), ...rest})))
 
-    for (let { spell, trail } of possibleMoves) {
-      for (const t of trail) {
+    for (let { spell, trail, cellsToBlackOut } of possibleMoves) {
+      for (const t of cellsToBlackOut) {
         grid.removeNode(t)
       }
 
@@ -130,11 +150,11 @@ export function solve(grid: Grid) {
           if (fst.removed) continue
           for (const d of [Direction.Right, Direction.Down]) {
             const snd = getNext(fst, d)
-            if (snd === fst || '_isHead' in snd || snd.removed) continue
+            if ('_isHead' in snd || snd.removed) continue
 
             grid.removeNode(fst)
             grid.removeNode(snd)
-            movedSteps.push({ spell, trail, drop: `${fst.id} + ${snd.id}` })
+            movedSteps.push({ spell, trail, drops: [fst.id, snd.id] })
             solveInner(depth + 1)
             movedSteps.pop()
             grid.backtrack(2)
@@ -165,13 +185,14 @@ export function solve(grid: Grid) {
       default: spell satisfies never; throw 0
       }
 
-      grid.backtrack(trail.length)
+      grid.backtrack(cellsToBlackOut.length)
     }
   }
 
   grid.print()
   solveInner(0)
 
+  console.log('nExploredState', nExploredState)
   console.log('solutions', solutions.map(steps => steps.map(({trail, ...rest}) => {
     return ({trail: trailToString(trail), ...rest})
   })))

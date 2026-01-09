@@ -96,7 +96,7 @@ type SolutionStep =
   | { spell: 'LOK',  trail: GridNode[], drop: string }
   | { spell: 'TLAK', trail: GridNode[], drops: [string, string] }
   | { spell: 'TA',   trail: GridNode[], dropLetter: string }
-  // | { spell: 'BE',   trail: GridNode[], space: string, write: string }
+  | { spell: 'BE',   trail: GridNode[], space: string, write: string }
   // | { spell: 'LOLO', trail: GridNode[], dropIndex: number }
 
 function trailToString(trail: GridNode[]) {
@@ -107,8 +107,21 @@ export function solve(grid: Grid) {
   let nExploredState = 0
   const solutions: SolutionStep[][] = []
 
+  const staticCharsOnGrid = Array.from(grid.byChar.keys())
+
+  // TODO: '?'
+  const charsAvailToWrite: string[] = staticCharsOnGrid.filter(x => x != '_')
+  for (const c of 'XBETALOK'.split('')) {
+    if (!charsAvailToWrite.includes(c)) {
+      charsAvailToWrite.push(c)
+    }
+  }
+
+  const introducedByBE: string[] = []
+  let introducedByBEUnique: string[] = []
   const movedSteps: SolutionStep[] = []
   function solveInner(depth: number) {
+    // only find one solution
     if (solutions.length) return
 
     if (grid.activeCnt === 0) {
@@ -121,9 +134,13 @@ export function solve(grid: Grid) {
     }
 
     nExploredState++
+    if (nExploredState % 100000 === 0) {
+      console.log(`explored ${nExploredState} states, nsol = ${solutions.length}`)
+    }
 
     const possibleMoves = findPossibleMoves(grid)
-    // console.log('moved', movedSteps)
+    // console.log('moved', movedSteps.map(
+    //   ({trail, ...rest}) => ({trail: trailToString(trail), ...rest})))
     // console.log('active count', grid.activeCnt)
     // console.log('possible moves', possibleMoves.map(
     //   ({trail, cellsToBlackOut, ...rest}) => ({trail: trailToString(trail), ...rest})))
@@ -160,20 +177,63 @@ export function solve(grid: Grid) {
         break
       }
       case 'TA': {
-        // FIXME: does not consider dynamic ones; maybe always visit "_" ones?
-        for (const [cc, anns] of grid.byChar) {
-          const nns = anns.filter(x => !x.removed)
+        const charTypesOnGrid = staticCharsOnGrid.concat(introducedByBEUnique)
+        if (charTypesOnGrid.length !== Array.from(new Set(charTypesOnGrid)).length) {
+          throw 1
+        }
+        for (const ch of charTypesOnGrid) {
+          const anns = grid.byChar.get(ch)
+          let nns
+          if (anns == null) {
+            // this char is introduced by "BE"
+            nns = grid.nodeList.filter(x => x.getWritten() == ch)
+          } else if (ch == '_') {
+            // when scanning "_", remove non-empty tiles
+            nns = anns.filter(x => x.getWritten() == '_')
+          } else {
+            nns = anns.slice()
+            // XXX: always visit "_" ones since they are dynamic
+            const emptyTiles = grid.byChar.get('_') ?? []
+            for (const et of emptyTiles) {
+              if (et.getWritten() == ch) {
+                nns.push(et)
+              }
+            }
+          }
+          nns = nns.filter(x => !x.removed)
           if (!nns.length) continue
 
           grid.removeNodes(nns)
-          movedSteps.push({ spell, trail, dropLetter: cc })
+          movedSteps.push({ spell, trail, dropLetter: ch })
           solveInner(depth + 1)
           movedSteps.pop()
           grid.backtrack()
         }
         break
       }
-      case 'BE': break
+      case 'BE': {
+        // empty tiles can be written something but not the other way around
+        const emptyTiles = grid.byChar.get('_') ?? []
+        for (const et of emptyTiles) {
+          if (et.removed || et.getWritten() != '_') continue
+          for (const ch of charsAvailToWrite) {
+            let isIntroducingNewChar = !staticCharsOnGrid.includes(ch)
+            if (isIntroducingNewChar) {
+              introducedByBE.push(ch)
+              introducedByBEUnique = Array.from(new Set(introducedByBE))
+            }
+            et.written = ch
+            movedSteps.push({ spell, trail, space: et.id, write: ch })
+            solveInner(depth + 1)
+            movedSteps.pop()
+            et.written = null
+            if (isIntroducingNewChar) {
+              introducedByBE.pop()
+              introducedByBEUnique = Array.from(new Set(introducedByBE))
+            }
+          }
+        }
+      }
       case 'LOLO': break
       default: spell satisfies never; throw 0
       }
@@ -186,7 +246,8 @@ export function solve(grid: Grid) {
   solveInner(0)
 
   console.log('nExploredState', nExploredState)
+  console.log(`====== SOLUTIONS ====== (${solutions.length})`)
   console.dir(solutions.map(steps => steps.map(({trail, ...rest}) => {
     return ({trail: trailToString(trail), ...rest})
-  })), { depth: 1000 })
+  })), { depth: 1000, maxArrayLength: 1e9 })
 }

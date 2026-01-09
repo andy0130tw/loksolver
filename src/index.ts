@@ -2,13 +2,14 @@ import { Readable } from 'node:stream'
 import { TextDecoderStream } from 'node:stream/web'
 import { solve } from './solver.js'
 import { Grid, GridNode } from './grid.js'
-import { fromAsync } from './utils.js'
+import { fromAsync, promiseTry } from './utils.js'
 
+class ParseError extends Error {}
 
-async function parse(input: string) {
+function parse(input: string) {
   const lines = input.split('\n').map(s => s.trimEnd()).filter(x => !!x)
   if (!lines.length) {
-    throw new Error('no input string')
+    throw new ParseError('no input string')
   }
 
   const ncol = Math.max.apply(Math, lines.map(s => s.length))
@@ -34,10 +35,14 @@ async function parse(input: string) {
 async function main() {
   const input = Readable.toWeb(process.stdin).pipeThrough(new TextDecoderStream)
   const chunks = await fromAsync(input)
-  const data = await parse(chunks.join('')).catch(err => {
-    console.error('PARSE ERROR: ' + err.message)
-    process.exit(1)
+  const data = await promiseTry(parse, chunks.join('')).catch(err => {
+    if (err instanceof ParseError) {
+      console.error('PARSE ERROR: ' + err.message)
+      process.exit(1)
+    }
+    throw err
   })
+
   return solve(data)
 }
 

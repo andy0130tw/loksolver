@@ -129,19 +129,17 @@ export function solve(grid: Grid) {
     //   ({trail, cellsToBlackOut, ...rest}) => ({trail: trailToString(trail), ...rest})))
 
     for (let { spell, trail, cellsToBlackOut } of possibleMoves) {
-      for (const t of cellsToBlackOut) {
-        grid.removeNode(t)
-      }
+      grid.removeNodes(cellsToBlackOut)
 
       switch (spell) {
       case 'LOK': {
         for (const node of grid.nodeList) {
           if (node.removed) continue
-          grid.removeNode(node)
+          grid.removeNodes([node])
           movedSteps.push({ spell, trail, drop: node.id })
           solveInner(depth + 1)
           movedSteps.pop()
-          grid.backtrack(1)
+          grid.backtrack()
         }
         break
       }
@@ -152,31 +150,26 @@ export function solve(grid: Grid) {
             const snd = getNext(fst, d)
             if ('_isHead' in snd || snd.removed) continue
 
-            grid.removeNode(fst)
-            grid.removeNode(snd)
+            grid.removeNodes([fst, snd])
             movedSteps.push({ spell, trail, drops: [fst.id, snd.id] })
             solveInner(depth + 1)
             movedSteps.pop()
-            grid.backtrack(2)
+            grid.backtrack()
           }
         }
         break
       }
       case 'TA': {
-        for (const node of grid.nodeList) {
-          if (node.removed) continue
+        // FIXME: does not consider dynamic ones; maybe always visit "_" ones?
+        for (const [cc, anns] of grid.byChar) {
+          const nns = anns.filter(x => !x.removed)
+          if (!nns.length) continue
 
-          // FIXME: does not consider dynamic ones; maybe always visit "_" ones?
-          for (const [cc, anns] of grid.byChar) {
-            const nns = anns.filter(x => !x.removed)
-            if (!nns.length) continue
-
-            nns.forEach(nn => grid.removeNode(nn))
-            movedSteps.push({ spell, trail, dropLetter: cc })
-            solveInner(depth + 1)
-            movedSteps.pop()
-            grid.backtrack(nns.length)
-          }
+          grid.removeNodes(nns)
+          movedSteps.push({ spell, trail, dropLetter: cc })
+          solveInner(depth + 1)
+          movedSteps.pop()
+          grid.backtrack()
         }
         break
       }
@@ -185,7 +178,7 @@ export function solve(grid: Grid) {
       default: spell satisfies never; throw 0
       }
 
-      grid.backtrack(cellsToBlackOut.length)
+      grid.backtrack()
     }
   }
 
@@ -193,7 +186,7 @@ export function solve(grid: Grid) {
   solveInner(0)
 
   console.log('nExploredState', nExploredState)
-  console.log('solutions', solutions.map(steps => steps.map(({trail, ...rest}) => {
+  console.dir(solutions.map(steps => steps.map(({trail, ...rest}) => {
     return ({trail: trailToString(trail), ...rest})
-  })))
+  })), { depth: 1000 })
 }

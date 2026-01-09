@@ -85,6 +85,7 @@ export class Grid {
 
   activeCnt: number = -1
   #removed: GridNode[] = []
+  #removedCnts: number[] = []
 
   constructor(readonly grid: (GridNode | null)[][]) {
     this.nrow = grid.length
@@ -111,11 +112,11 @@ export class Grid {
         cur.up = colsPrev[j]
         colsPrev[j] = cur
 
-        const cc = cur.getWritten()
-        if (!this.byChar.has(cc)) {
-          this.byChar.set(cc, [cur])
+        const ch = cur.char  // should not have been written anything yet
+        if (!this.byChar.has(ch)) {
+          this.byChar.set(ch, [cur])
         } else {
-          this.byChar.get(cc)!.push(cur)
+          this.byChar.get(ch)!.push(cur)
         }
       }
     }
@@ -156,24 +157,21 @@ export class Grid {
     // }
   }
 
-  removeNode(node: GridNode) {
-    // dangerous!
-    const {x, y} = node
-    if (this.grid[x]?.[y] !== node) {
-      throw new Error('illegal node')
+  removeNodes(nodes: GridNode[]) {
+    let cnt = 0
+    for (const node of nodes) {
+      if (this.#removeNode(node)) {
+        cnt++
+      }
     }
-    return this.removeByPos(node.x, node.y)
+    if (cnt == 0) {
+      throw new Error(`Did not remove any nodes (out of ${nodes.length})`)
+    }
+    this.#removedCnts.push(cnt)
   }
 
-  removeByPos(x: number, y: number) {
-    const node = this.grid[x]?.[y]
-    if (!node) {
-      throw new Error('node not found')
-    }
-
-    if (node.removed) {
-      throw new Error('node has been removed')
-    }
+  #removeNode(node: GridNode) {
+    if (node.removed) return false
 
     node.removed = true
     this.activeCnt--
@@ -184,21 +182,21 @@ export class Grid {
     node.down.up = node.up
 
     this.#removed.push(node)
+    return true
   }
 
-  backtrack(count: number = 1) {
-    if (count > this.nodeList.length - this.activeCnt) throw new Error('illegal count')
-    for (let i = 0; i < count; i++) {
+  backtrack() {
+    if (!this.#removedCnts.length) {
+      throw new Error('Attempt to backtrack but the stack is empty')
+    }
+    let cnt = this.#removedCnts.pop()!
+    while (--cnt >= 0) {
       this.#backtrackOne()
     }
   }
 
   #backtrackOne() {
-    const node = this.#removed.pop()
-    if (!node) {
-      throw new Error('backtrack stack underflow')
-    }
-
+    const node = this.#removed.pop()!
     node.removed = false
     this.activeCnt++
 

@@ -12,3 +12,16 @@ export async function fromAsync<T>(ait: AsyncIterable<T>) {
   }
   return chunks
 }
+
+export function promiseTry<T, Args extends unknown[]>(
+  func: (...args: Args) => T | PromiseLike<T>, ...args: Args): Promise<Awaited<T>> {
+
+  if (typeof (Promise as any).try !== 'undefined') {
+    return (Promise as any).try(func, ...args)
+  }
+  try {
+    return Promise.resolve(func(...args))
+  } catch (e) {
+    return Promise.reject(e)
+  }
+}

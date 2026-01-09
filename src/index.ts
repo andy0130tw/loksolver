@@ -7,7 +7,9 @@ import { fromAsync, promiseTry } from './utils.js'
 class ParseError extends Error {}
 
 function parse(input: string) {
-  const lines = input.split('\n').map(s => s.trimEnd()).filter(x => !!x)
+  const lines = input.split('\n').map(s => s.trimEnd())
+  while (lines.length && !lines.at(-1)!.length) lines.pop()
+
   if (!lines.length) {
     throw new ParseError('no input string')
   }

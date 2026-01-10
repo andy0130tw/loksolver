@@ -3,7 +3,10 @@
 <title>LOK Solver</title>
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <script type="module">
-  import { parse, solve, ParseError } from './dist/index.mjs'
+  import { parse, solve, ParseError, trailToString } from './dist/index.mjs'
+
+  // vvv increase if you want more solutions
+  const nSolutionLimit = 100
 
   window.doSolve = () => {
     try {
@@ -23,7 +26,7 @@
       parsed.textContent = str
       result.textContent = 'Solving...'
 
-      const { solutions } = solve(grid)
+      const { solutions } = solve(grid, { nSolutionLimit })
 
       if (solutions.length) {
         result.textContent = ''
@@ -32,12 +35,17 @@
           div.classList = 'solution'
           div.textContent = `Solution #${idx + 1}:\n`
           steps.map(({spell, trail, ...rest}) => {
-            div.textContent += spell + ': ' + trail.map(x => x.id).join(' -> ') + ' ' + JSON.stringify(rest) + '\n'
+            div.textContent += spell + ': ' + trailToString(trail) + ' ' + JSON.stringify(rest) + '\n'
           })
           result.appendChild(div)
         })
+        if (solutions.length == nSolutionLimit) {
+          const div = document.createElement('div')
+          div.textContent = '... maybe more'
+          result.appendChild(div)
+        }
       } else {
-        result.textContent = 'No solutions found :('
+        result.textContent = 'No solution found :('
       }
 
     } catch (err) {

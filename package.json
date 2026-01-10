@@ -8,13 +8,15 @@
   "main": "dist/src/cli.js",
   "scripts": {
     "start": "vite-node src/cli.ts",
-    "tsc": "tsc"
+    "tsc": "tsc",
+    "build": "tsdown"
   },
   "dependencies": {
     "vite-node": "^5.2.0"
   },
   "devDependencies": {
     "@types/node": "^22.19.3",
+    "tsdown": "^0.19.0",
     "typescript": "^5.9.3"
   }
 }

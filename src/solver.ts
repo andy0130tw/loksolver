@@ -109,7 +109,9 @@ export function trailToString(trail: GridNode[]) {
   return trail.map(x => x.id).join(' -> ')
 }
 
-export function solve(grid: Grid) {
+export function solve(grid: Grid, options: {nSolutionLimit?: number} = {}) {
+  const { nSolutionLimit = 1e9 } = options
+
   let nExploredState = 0
   const solutions: SolutionStep[][] = []
 
@@ -126,16 +128,15 @@ export function solve(grid: Grid) {
   const introducedByBE: string[] = []
   let introducedByBEUnique: string[] = []
   const movedSteps: SolutionStep[] = []
-  function solveInner(depth: number) {
-    // only find one solution
-    if (solutions.length) return
+  function solveInner() {
+    if (solutions.length >= nSolutionLimit) return
 
     if (grid.activeCnt === 0) {
       solutions.push(movedSteps.slice())
       return
     }
 
-    if (depth > 10) {
+    if (movedSteps.length > 10) {
       return
     }
 
@@ -159,7 +160,7 @@ export function solve(grid: Grid) {
         for (const node of grid.nodeList) {
           if (!grid.removeNodes([node])) continue
           movedSteps.push({ spell, trail, drop: node.id })
-          solveInner(depth + 1)
+          solveInner()
           movedSteps.pop()
           grid.backtrack()
         }
@@ -174,7 +175,7 @@ export function solve(grid: Grid) {
 
             grid.removeNodes([fst, snd])
             movedSteps.push({ spell, trail, drops: [fst.id, snd.id] })
-            solveInner(depth + 1)
+            solveInner()
             movedSteps.pop()
             grid.backtrack()
           }
@@ -209,7 +210,7 @@ export function solve(grid: Grid) {
 
           if (!grid.removeNodes(nns)) continue
           movedSteps.push({ spell, trail, dropLetter: ch })
-          solveInner(depth + 1)
+          solveInner()
           movedSteps.pop()
           grid.backtrack()
         }
@@ -230,7 +231,7 @@ export function solve(grid: Grid) {
             }
             et.written = ch
             movedSteps.push({ spell, trail, space: et.id, write: ch })
-            solveInner(depth + 1)
+            solveInner()
             movedSteps.pop()
             et.written = null
             if (isIntroducingNewChar) {
@@ -245,7 +246,7 @@ export function solve(grid: Grid) {
         for (const [idx, nodes] of grid.byDiagIndex) {
           if (!grid.removeNodes(nodes)) continue
           movedSteps.push({ spell, trail, dropIndex: idx })
-          solveInner(depth + 1)
+          solveInner()
           movedSteps.pop()
           grid.backtrack()
         }
@@ -259,7 +260,7 @@ export function solve(grid: Grid) {
   }
 
   grid.print()
-  solveInner(0)
+  solveInner()
 
   return {
     nExploredState,

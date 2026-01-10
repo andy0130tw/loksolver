@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>LOK Solver</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<script type="module">
+  import { parse, solve, ParseError } from './dist/index.mjs'
+
+  window.doSolve = () => {
+    try {
+      let mat
+      if (mat = input.value.match(/[^A-Z _\n]/)) {
+        throw new ParseError(`Unrecognized (or unsupported?) char "${mat[0]}".`)
+      }
+
+      const grid = parse(input.value)
+
+      // the WTF moment
+      const x = console.log
+      let str = ''
+      console.log = s => { str += s + '\n' }
+      grid.print()
+      console.log = x
+      parsed.textContent = str
+      result.textContent = 'Solving...'
+
+      const { solutions } = solve(grid)
+
+      if (solutions.length) {
+        result.textContent = ''
+        solutions.forEach((steps, idx) => {
+          const div = document.createElement('div')
+          div.classList = 'solution'
+          div.textContent = `Solution #${idx + 1}:\n`
+          steps.map(({spell, trail, ...rest}) => {
+            div.textContent += spell + ': ' + trail.map(x => x.id).join(' -> ') + ' ' + JSON.stringify(rest) + '\n'
+          })
+          result.appendChild(div)
+        })
+      } else {
+        result.textContent = 'No solutions found :('
+      }
+
+    } catch (err) {
+      if (err instanceof ParseError) {
+        result.textContent = 'PARSE ERROR:' + err.message
+      } else throw err
+    }
+  }
+
+  window.tryExample = () => {
+    input.value = 'LKOL\nO  _\nK  _\n'
+    doSolve()
+  }
+</script>
+<style>
+  html, body { box-sizing: border-box; }
+  *, *:before, *:after { box-sizing: inherit; }
+  #container {
+    display: grid;
+    grid-template: "title title" "form parsed" "form result";
+    grid-template-columns: 2fr 3fr;
+    grid-gap: 8px;
+    max-width: 768px;
+    flex-direction: column;
+    margin: auto;
+    gap: 8px;
+  }
+  #title {
+    grid-area: title;
+  }
+  #ghlink {
+    font-size: .5em;
+  }
+  #form {
+    grid-area: form;
+    display: flex;
+    flex-direction: column;
+  }
+  #input {
+    padding: 8px;
+    display: block;
+    font-size: 1.5rem;
+    letter-spacing: .1rem;
+    width: 100%;
+  }
+  #button {
+    font-size: 1.5rem;
+    display: block;
+    padding: 8px;
+  }
+  #parsed {
+    white-space: pre;
+    font-family: monospace;
+    grid-template: parsed;
+  }
+  #result {
+    white-space: pre;
+    font-family: monospace;
+    grid-template: result;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+</style>
+
+<div id="container">
+  <h1 id="title">LOK Solver <a id="ghlink" href="https://github.com/andy0130tw/loksolver">GitHub</a></h1>
+  <div id="form">
+    <textarea id="input" rows="6" placeholder="grid content here..."></textarea>
+    <button id="button" type="button" onclick="doSolve()">Solve!</button>
+    <button type="button" id="what-is-lok" onclick="tryExample()">Try Example</button>
+  </div>
+  <div id="parsed"></div>
+  <div id="result"></div>
+</div>

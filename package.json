@@ -1,7 +1,13 @@
 {
+  "name": "loksolver",
+  "author": "andy0130tw <andy0130tw@yahoo.com.tw>",
+  "license": "UNLICENSED",
+  "version": "0.0.1",
+  "private": true,
   "type": "module",
+  "main": "dist/src/cli.js",
   "scripts": {
-    "start": "vite-node src/index.ts",
+    "start": "vite-node src/cli.ts",
     "tsc": "tsc"
   },
   "dependencies": {

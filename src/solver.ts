@@ -1,5 +1,12 @@
 import { Grid, GridNode } from './grid.js'
 
+type SolutionStep = { trail: GridNode[] } & (
+  | { spell: 'LOK',  drop: string }
+  | { spell: 'TLAK', drops: [string, string] }
+  | { spell: 'TA',   dropLetter: string }
+  | { spell: 'BE',   space: string, write: string }
+  | { spell: 'LOLO', dropIndex: number })
+
 const validStartLetters = ['L', 'T', 'B', '?']
 
 const validSpellPrefixes = [
@@ -98,14 +105,7 @@ function findPossibleMoves(grid: Grid) {
   return possibleMoves
 }
 
-type SolutionStep = { trail: GridNode[] } & (
-  | { spell: 'LOK',  drop: string }
-  | { spell: 'TLAK', drops: [string, string] }
-  | { spell: 'TA',   dropLetter: string }
-  | { spell: 'BE',   space: string, write: string }
-  | { spell: 'LOLO', dropIndex: number })
-
-function trailToString(trail: GridNode[]) {
+export function trailToString(trail: GridNode[]) {
   return trail.map(x => x.id).join(' -> ')
 }
 
@@ -261,9 +261,8 @@ export function solve(grid: Grid) {
   grid.print()
   solveInner(0)
 
-  console.log('nExploredState', nExploredState)
-  console.log(`====== SOLUTIONS ====== (${solutions.length})`)
-  console.dir(solutions.map(steps => steps.map(({trail, ...rest}) => {
-    return ({trail: trailToString(trail), ...rest})
-  })), { depth: 1000, maxArrayLength: 1e9 })
+  return {
+    nExploredState,
+    solutions,
+  }
 }

@@ -27,7 +27,8 @@ jobs:
     - name: Collect files
       run: |
         mkdir build
-        mv demo.html dist build
+        mv dist build
+        mv demo.html build/index.html
 
     - name: Upload static files as artifact
       uses: actions/upload-pages-artifact@v3

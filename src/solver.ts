@@ -50,6 +50,10 @@ function findPossibleMoves(grid: Grid) {
   function walkRec(node: GridNode, dir: Direction, spell: string) {
     if (validSpells.includes(spell)) {
       const trail = walked.slice().concat([node])
+      // FIXME: dedupe path: I can think of several cases:
+      //   1. some detour via "X"s; this is problematic since a path can be "pumped"
+      //      via a loop of "X"s
+      //   2. two starting directions of a cycle path to spell "LOLO"
       possibleMoves.push({
         spell: spell as ValidSpell,
         trail,
@@ -58,7 +62,9 @@ function findPossibleMoves(grid: Grid) {
       return
     }
     if (!validSpellPrefixes.includes(spell)) return
-    if (walked.length > 50) return
+    // FIXME: this needs to be fine-tuned for now to prevent exponential explosion;
+    //        see the upper FIXME
+    if (walked.length > 15) return
 
     const nxt = getNext(node, dir)
 
@@ -92,12 +98,12 @@ function findPossibleMoves(grid: Grid) {
   return possibleMoves
 }
 
-type SolutionStep =
-  | { spell: 'LOK',  trail: GridNode[], drop: string }
-  | { spell: 'TLAK', trail: GridNode[], drops: [string, string] }
-  | { spell: 'TA',   trail: GridNode[], dropLetter: string }
-  | { spell: 'BE',   trail: GridNode[], space: string, write: string }
-  // | { spell: 'LOLO', trail: GridNode[], dropIndex: number }
+type SolutionStep = { trail: GridNode[] } & (
+  | { spell: 'LOK',  drop: string }
+  | { spell: 'TLAK', drops: [string, string] }
+  | { spell: 'TA',   dropLetter: string }
+  | { spell: 'BE',   space: string, write: string }
+  | { spell: 'LOLO', dropIndex: number })
 
 function trailToString(trail: GridNode[]) {
   return trail.map(x => x.id).join(' -> ')
@@ -151,8 +157,7 @@ export function solve(grid: Grid) {
       switch (spell) {
       case 'LOK': {
         for (const node of grid.nodeList) {
-          if (node.removed) continue
-          grid.removeNodes([node])
+          if (!grid.removeNodes([node])) continue
           movedSteps.push({ spell, trail, drop: node.id })
           solveInner(depth + 1)
           movedSteps.pop()
@@ -185,8 +190,9 @@ export function solve(grid: Grid) {
           const anns = grid.byChar.get(ch)
           let nns
           if (anns == null) {
+            const emptyTiles = grid.byChar.get('_') ?? []
             // this char is introduced by "BE"
-            nns = grid.nodeList.filter(x => x.getWritten() == ch)
+            nns = emptyTiles.filter(x => x.getWritten() == ch)
           } else if (ch == '_') {
             // when scanning "_", remove non-empty tiles
             nns = anns.filter(x => x.getWritten() == '_')
@@ -200,10 +206,8 @@ export function solve(grid: Grid) {
               }
             }
           }
-          nns = nns.filter(x => !x.removed)
-          if (!nns.length) continue
 
-          grid.removeNodes(nns)
+          if (!grid.removeNodes(nns)) continue
           movedSteps.push({ spell, trail, dropLetter: ch })
           solveInner(depth + 1)
           movedSteps.pop()
@@ -219,8 +223,10 @@ export function solve(grid: Grid) {
           for (const ch of charsAvailToWrite) {
             let isIntroducingNewChar = !staticCharsOnGrid.includes(ch)
             if (isIntroducingNewChar) {
+              if (!introducedByBE.includes(ch)) {
+                introducedByBEUnique.push(ch)
+              }
               introducedByBE.push(ch)
-              introducedByBEUnique = Array.from(new Set(introducedByBE))
             }
             et.written = ch
             movedSteps.push({ spell, trail, space: et.id, write: ch })
@@ -233,8 +239,18 @@ export function solve(grid: Grid) {
             }
           }
         }
+        break
       }
-      case 'LOLO': break
+      case 'LOLO': {
+        for (const [idx, nodes] of grid.byDiagIndex) {
+          if (!grid.removeNodes(nodes)) continue
+          movedSteps.push({ spell, trail, dropIndex: idx })
+          solveInner(depth + 1)
+          movedSteps.pop()
+          grid.backtrack()
+        }
+        break
+      }
       default: spell satisfies never; throw 0
       }
 

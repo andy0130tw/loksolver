@@ -81,7 +81,10 @@ export class Grid {
   colPtrs: ColHead[]
 
   nodeList: GridNode[]
+  // for use by TA
   byChar: Map<string, GridNode[]> = new Map
+  // for use by LOLO
+  byDiagIndex: Map<number, GridNode[]> = new Map
 
   activeCnt: number = -1
   #removed: GridNode[] = []
@@ -117,6 +120,14 @@ export class Grid {
           this.byChar.set(ch, [cur])
         } else {
           this.byChar.get(ch)!.push(cur)
+        }
+
+        // the upper-left diagonal is indexed zero, and so on
+        const di = i + j
+        if (!this.byDiagIndex.has(di)) {
+          this.byDiagIndex.set(di, [cur])
+        } else {
+          this.byDiagIndex.get(di)!.push(cur)
         }
       }
     }
@@ -157,7 +168,7 @@ export class Grid {
     // }
   }
 
-  removeNodes(nodes: GridNode[]) {
+  removeNodes(nodes: GridNode[], strict = false) {
     let cnt = 0
     for (const node of nodes) {
       if (this.#removeNode(node)) {
@@ -165,9 +176,13 @@ export class Grid {
       }
     }
     if (cnt == 0) {
-      throw new Error(`Did not remove any nodes (out of ${nodes.length})`)
+      if (strict) {
+        throw new Error(`Did not remove any nodes (out of ${nodes.length})`)
+      }
+      return false
     }
     this.#removedCnts.push(cnt)
+    return true
   }
 
   #removeNode(node: GridNode) {
@@ -191,18 +206,17 @@ export class Grid {
     }
     let cnt = this.#removedCnts.pop()!
     while (--cnt >= 0) {
-      this.#backtrackOne()
+      if (!this.#removed.length) {
+        throw new Error('No node to backtrack')
+      }
+      const node = this.#removed.pop()!
+      node.removed = false
+      this.activeCnt++
+
+      node.left.right = node
+      node.right.left = node
+      node.up.down = node
+      node.down.up = node
     }
-  }
-
-  #backtrackOne() {
-    const node = this.#removed.pop()!
-    node.removed = false
-    this.activeCnt++
-
-    node.left.right = node
-    node.right.left = node
-    node.up.down = node
-    node.down.up = node
   }
 }

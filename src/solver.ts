@@ -184,28 +184,13 @@ export function solve(grid: Grid, options: {nSolutionLimit?: number} = {}) {
       }
       case 'TA': {
         const charTypesOnGrid = staticCharsOnGrid.concat(introducedByBEUnique)
-        if (charTypesOnGrid.length !== Array.from(new Set(charTypesOnGrid)).length) {
-          throw 1
-        }
         for (const ch of charTypesOnGrid) {
-          const anns = grid.byChar.get(ch)
-          let nns
-          if (anns == null) {
-            const emptyTiles = grid.byChar.get('_') ?? []
-            // this char is introduced by "BE"
-            nns = emptyTiles.filter(x => x.getWritten() == ch)
-          } else if (ch == '_') {
-            // when scanning "_", remove non-empty tiles
-            nns = anns.filter(x => x.getWritten() == '_')
-          } else {
-            nns = anns.slice()
-            // XXX: always visit "_" ones since they are dynamic
-            const emptyTiles = grid.byChar.get('_') ?? []
-            for (const et of emptyTiles) {
-              if (et.getWritten() == ch) {
-                nns.push(et)
-              }
-            }
+          // the char can be either from static tiles or introduced by "BE" from formerly empty tiles
+          // XXX: always visit "_" ones since they are dynamic; maybe inefficient?
+          const emptyTiles = grid.byChar.get('_') ?? []
+          let nns = emptyTiles.filter(x => x.getWritten() == ch)
+          if (grid.byChar.has(ch) && ch != '_') {
+            nns = nns.concat(grid.byChar.get(ch)!)
           }
 
           if (!grid.removeNodes(nns)) continue

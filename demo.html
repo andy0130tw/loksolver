@@ -11,7 +11,7 @@
   window.doSolve = () => {
     try {
       let mat
-      if (mat = input.value.match(/[^A-Z _\n]/)) {
+      if (mat = input.value.match(/[^A-VX-Z _\n]/)) {
         throw new ParseError(`Unrecognized (or unsupported?) char "${mat[0]}".`)
       }
 

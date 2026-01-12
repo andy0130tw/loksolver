@@ -8,7 +8,7 @@
   // vvv increase if you want more solutions
   const nSolutionLimit = 100
 
-  window.doSolve = () => {
+  window.doSolve = async () => {
     try {
       let mat
       if (mat = input.value.match(/[^A-VX-Z _\n]/)) {
@@ -25,6 +25,7 @@
       console.log = x
       parsed.textContent = str
       result.textContent = 'Solving...'
+      await new Promise(r => setTimeout(r))
 
       const { solutions } = solve(grid, { nSolutionLimit })
 
@@ -50,7 +51,7 @@
 
     } catch (err) {
       if (err instanceof ParseError) {
-        result.textContent = 'PARSE ERROR:' + err.message
+        result.textContent = 'PARSE ERROR: ' + err.message
       } else throw err
     }
   }
@@ -99,15 +100,17 @@
   #parsed {
     white-space: pre;
     font-family: monospace;
-    grid-template: parsed;
+    grid-area: parsed;
+    overflow: auto;
   }
   #result {
     white-space: pre;
     font-family: monospace;
-    grid-template: result;
+    grid-area: result;
     display: flex;
     flex-direction: column;
     gap: 8px;
+    overflow: auto;
   }
 
   @media screen and (max-width: 768px) {

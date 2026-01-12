@@ -153,9 +153,11 @@ export class Grid {
   }
 
   print() {
-    console.log('  ' + newArray(this.ncol, i => ' ' + String.fromCharCode(65 + i)).join(''))
+    const colHeaders = newArray(this.ncol, i => ' ' + String.fromCharCode(65 + i)).join('') + ' '
+    console.log('  |' + colHeaders)
+    console.log('--+' + colHeaders.replace(/./g, '-'))
     for (let i = 0; i < this.nrow; i++) {
-      let str = `${String(i+1).padStart(2)} `
+      let str = `${String(i+1).padStart(2)}| `
       for (let j = 0; j < this.ncol; j++) {
         str += this.grid[i][j]?.char ?? ' '
         str += this.grid[i][j]?.removed ? '#' : ' '
